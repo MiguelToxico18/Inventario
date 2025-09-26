@@ -1,20 +1,42 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';  // Importar la navegación
+import { createStackNavigator } from '@react-navigation/stack';  // Importar Stack Navigator
 
-export default function App() {
+// Importa las pantallas
+import AgregarCategoria from './src/screens/AgregarCategoria';  // Pantalla AgregarCategoria
+import AgregarProveedor from './src/screens/AgregarProveedor';  // Pantalla AgregarProveedor
+import AgregarProducto from './src/screens/AgregarProducto';  // Pantalla AgregarProducto
+import HomeScreen from './src/screens/HomeScreen';  // Pantalla de inicio
+
+const Stack = createStackNavigator();  // Crea el stack de navegación
+
+const App = () => {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen 
+          name="Home" 
+          component={HomeScreen} 
+          options={{ title: 'Pantalla de Inicio' }} 
+        />
+        <Stack.Screen 
+          name="AgregarCategoria" 
+          component={AgregarCategoria} 
+          options={{ title: 'Agregar Categoría' }} 
+        />
+        <Stack.Screen 
+          name="AgregarProveedor"  // El nombre aquí debe coincidir con el que usas para navegar
+          component={AgregarProveedor} 
+          options={{ title: 'Agregar Proveedor' }} 
+        />
+        <Stack.Screen 
+          name="AgregarProducto"  // Agregar la pantalla para productos
+          component={AgregarProducto} 
+          options={{ title: 'Agregar Producto' }} 
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;
