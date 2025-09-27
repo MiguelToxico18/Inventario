@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
 import { db } from '../firebaseConfig';  // Importar la configuración de Firebase
-import { collection, doc, setDoc, getDocs } from 'firebase/firestore';  // Importar Firestore
+import { collection, getDocs, setDoc, doc } from 'firebase/firestore';  // Importar Firestore
 
 const AgregarProveedor = () => {
   const [proveedor, setProveedor] = useState('');  // Estado para manejar el nombre del proveedor
@@ -13,10 +13,16 @@ const AgregarProveedor = () => {
     try {
       const querySnapshot = await getDocs(collection(db, "Proveedor"));
       let maxId = 0;
+
+      // Recorremos los documentos y extraemos la parte numérica del ID
       querySnapshot.forEach(doc => {
         const id = doc.id.replace('prov', '');  // Obtener solo la parte numérica del ID (sin "prov")
-        maxId = Math.max(maxId, parseInt(id));  // Obtener el ID más alto
+        const numId = parseInt(id); // Convertir la parte numérica a un número
+        if (!isNaN(numId)) {
+          maxId = Math.max(maxId, numId);  // Obtener el ID más alto si es un número válido
+        }
       });
+
       setLastId(`prov${String(maxId + 1).padStart(3, '0')}`);  // Incrementar el ID y asignarlo a lastId
     } catch (e) {
       console.error("Error obteniendo el último ID: ", e);
@@ -37,9 +43,11 @@ const AgregarProveedor = () => {
     }
 
     try {
-      // Agregar el nuevo proveedor a Firestore con el ID generado
-      await setDoc(doc(db, "Proveedor", lastId), {
+      // Usamos setDoc para asignar un ID manual con el formato prov001, prov002, etc.
+      const docRef = doc(db, "Proveedor", lastId); // Usamos el lastId como el ID del documento
+      await setDoc(docRef, {
         nombre: proveedor,  // El valor del input (lo que el usuario ingresa)
+        idProveedor: lastId,  // Asignar el ID auto-incremental
       });
 
       // Actualiza el mensaje de éxito en la interfaz
