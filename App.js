@@ -7,13 +7,19 @@ import AgregarCategoria from './src/screens/AgregarCategoria';  // Pantalla Agre
 import AgregarProveedor from './src/screens/AgregarProveedor';  // Pantalla AgregarProveedor
 import AgregarProducto from './src/screens/AgregarProducto';  // Pantalla AgregarProducto
 import HomeScreen from './src/screens/HomeScreen';  // Pantalla de inicio
+import LoginScreen from "./src/screens/LoginScreen"; // Pantalla de inicio de sesión
 
 const Stack = createStackNavigator();  // Crea el stack de navegación
 
 const App = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen} 
+          options={{ title: 'Iniciar Sesión', headerShown: false }} 
+        />
         <Stack.Screen 
           name="Home" 
           component={HomeScreen} 

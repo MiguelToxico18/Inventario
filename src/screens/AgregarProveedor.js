@@ -70,7 +70,7 @@ const AgregarProveedor = () => {
         onChangeText={setProveedor}  // Actualiza el estado con el valor del input
       />
       <Button title="Agregar Proveedor" onPress={agregarProveedor} />
-      {mensaje ? <Text style={styles.successMessage}>{mensaje}</Text> : null}  {/* Muestra el mensaje de éxito si existe */}
+      {mensaje ? <Text style={styles.successMessage}>{mensaje}{/* Muestra el mensaje de éxito si existe */}</Text> : null}  
     </View>
   );
 };

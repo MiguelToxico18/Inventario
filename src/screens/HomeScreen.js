@@ -58,8 +58,8 @@ const HomeScreen = ({ navigation }) => {
                 <Text style={styles.cell}>{producto.categoria}</Text>
                 <Text style={styles.cell}>{producto.precio}</Text>
                 <Text style={styles.cell}>{producto.cantidadStock}</Text>
-                <Text style={styles.cell}>{producto.proveedor}</Text>  {/* Proveedor */}
-                <Text style={styles.cell}>{producto.descripcion}</Text>  {/* Descripción */}
+                <Text style={styles.cell}>{producto.proveedor} {/* Proveedor */}</Text>  
+                <Text style={styles.cell}>{producto.descripcion} {/* Descripción */}</Text>  
               </View>
             ))
           ) : (

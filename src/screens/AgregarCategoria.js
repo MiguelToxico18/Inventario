@@ -70,7 +70,7 @@ const AgregarCategoria = () => {
         onChangeText={setCategoria}  // Actualiza el estado con el valor del input
       />
       <Button title="Agregar Categoría" onPress={agregarCategoria} />
-      {mensaje ? <Text style={styles.successMessage}>{mensaje}</Text> : null}  {/* Muestra el mensaje de éxito si existe */}
+      {mensaje ? <Text style={styles.successMessage}>{mensaje}{/* Muestra el mensaje de éxito si existe */}</Text> : null}  
     </View>
   );
 };
