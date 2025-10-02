@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
+import { View, TextInput, Button, Text, Alert, FlatList, ScrollView, StyleSheet } from 'react-native';
 import { db } from '../firebaseConfig';  // Importar la configuración de Firebase
-import { collection, getDocs, setDoc, doc } from 'firebase/firestore';  // Importar Firestore
+import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';  // Importar Firestore
 
-const AgregarCategoria = () => {
-  const [categoria, setCategoria] = useState('');  // Estado para manejar el nombre de la categoría
-  const [mensaje, setMensaje] = useState('');  // Estado para manejar el mensaje de éxito
-  const [lastId, setLastId] = useState('CAT000');  // Estado para manejar el último ID registrado
+const AgregarCategoria = ({ navigation }) => {  // Recibiendo el prop navigation
+  const [categoria, setCategoria] = useState('');
+  const [mensaje, setMensaje] = useState('');
+  const [lastId, setLastId] = useState('CAT000');
+  const [categorias, setCategorias] = useState([]);
 
   // Función para obtener el último ID registrado
   const obtenerUltimoId = async () => {
@@ -14,51 +15,78 @@ const AgregarCategoria = () => {
       const querySnapshot = await getDocs(collection(db, "Categoria"));
       let maxId = 0;
 
-      // Recorremos los documentos y extraemos la parte numérica del ID
       querySnapshot.forEach(doc => {
-        const id = doc.id.replace('CAT', '');  // Obtener solo la parte numérica del ID (sin "CAT")
-        const numId = parseInt(id); // Convertir la parte numérica a un número
+        const id = doc.id.replace('CAT', '');
+        const numId = parseInt(id);
         if (!isNaN(numId)) {
-          maxId = Math.max(maxId, numId);  // Obtener el ID más alto si es un número válido
+          maxId = Math.max(maxId, numId);
         }
       });
 
-      setLastId(`CAT${String(maxId + 1).padStart(3, '0')}`);  // Incrementar el ID y asignarlo a lastId
+      setLastId(`CAT${String(maxId + 1).padStart(3, '0')}`);
     } catch (e) {
       console.error("Error obteniendo el último ID: ", e);
-      setLastId('CAT001');  // Si no hay IDs en Firestore, comenzamos desde CAT001
+      setLastId('CAT001');
     }
   };
 
-  // Cargar el último ID cuando el componente se monta
+  // Función para obtener todas las categorías de Firestore
+  const obtenerCategorias = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "Categoria"));
+      const categoriasData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        nombre: doc.data().nombre,
+      }));
+      setCategorias(categoriasData);
+    } catch (e) {
+      console.error("Error obteniendo las categorías: ", e);
+    }
+  };
+
   useEffect(() => {
-    obtenerUltimoId();  // Obtener el último ID cuando se monta el componente
+    obtenerUltimoId();
+    obtenerCategorias();
   }, []);
 
-  // Función para agregar la categoría a Firestore
   const agregarCategoria = async () => {
     if (categoria.trim() === "") {
       alert("Por favor ingresa un nombre de categoría");
-      return; // Si el campo está vacío, no hace nada
+      return;
     }
 
     try {
-      // Usamos setDoc para asignar un ID manual con el formato CAT001, CAT002, etc.
-      const docRef = doc(db, "Categoria", lastId); // Usamos el lastId como el ID del documento
+      const docRef = doc(db, "Categoria", lastId);
       await setDoc(docRef, {
-        nombre: categoria,  // El valor del input (lo que el usuario ingresa)
-        idCategoria: lastId,  // Asignar el ID auto-incremental
+        nombre: categoria,
+        idCategoria: lastId,
       });
 
-      // Actualiza el mensaje de éxito en la interfaz
       setMensaje(`Categoría "${categoria}" agregada con ID ${lastId}.`);
-      Alert.alert("Éxito", `Categoría "${categoria}" agregada exitosamente con ID ${lastId}`);  // Alerta de éxito
-      setCategoria('');  // Limpiar el campo de texto después de agregar la categoría
-      obtenerUltimoId();  // Actualizar el último ID después de agregar la categoría
+      Alert.alert("Éxito", `Categoría "${categoria}" agregada exitosamente con ID ${lastId}`);
+      setCategoria('');
+      obtenerUltimoId();
+      obtenerCategorias();
     } catch (e) {
-      console.error("Error agregando categoría: ", e);  // Manejar cualquier error
+      console.error("Error agregando categoría: ", e);
       Alert.alert("Error", "Hubo un error al agregar la categoría. Intenta de nuevo.");
     }
+  };
+
+  const eliminarCategoria = async (idCategoria) => {
+    try {
+      await deleteDoc(doc(db, "Categoria", idCategoria));
+      Alert.alert("Éxito", "Categoría eliminada exitosamente.");
+      obtenerCategorias();
+    } catch (e) {
+      console.error("Error eliminando categoría: ", e);
+      Alert.alert("Error", "Hubo un error al eliminar la categoría. Intenta de nuevo.");
+    }
+  };
+
+  const abrirModal = (id, nombre) => {
+    // Pasamos el id y nombre de la categoría a la pantalla ModificarCategoria
+    navigation.navigate('ModificarCategoria', { categoriaId: id, categoriaNombre: nombre });
   };
 
   return (
@@ -67,10 +95,35 @@ const AgregarCategoria = () => {
         style={styles.input}
         placeholder="Nombre de la categoría"
         value={categoria}
-        onChangeText={setCategoria}  // Actualiza el estado con el valor del input
+        onChangeText={setCategoria}
       />
       <Button title="Agregar Categoría" onPress={agregarCategoria} />
-      {mensaje ? <Text style={styles.successMessage}>{mensaje}{/* Muestra el mensaje de éxito si existe */}</Text> : null}  
+      {mensaje ? <Text style={styles.successMessage}>{mensaje}</Text> : null}
+
+      <View style={styles.headerRow}>
+        <Text style={styles.headerText}>ID</Text>
+        <Text style={styles.headerText}>Nombre</Text>
+        <Text style={styles.headerText}>Acciones</Text>
+      </View>
+
+      <ScrollView horizontal={true} style={styles.scrollContainer}>
+        <FlatList
+          data={categorias}
+          renderItem={({ item }) => (
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryRow}>
+                <Text style={styles.itemText}>{item.id}</Text>
+                <Text style={styles.itemText}>{item.nombre}</Text>
+                <View style={styles.actions}>
+                  <Button title="Modificar" onPress={() => abrirModal(item.id, item.nombre)} />
+                  <Button title="Eliminar" onPress={() => eliminarCategoria(item.id)} />
+                </View>
+              </View>
+            </View>
+          )}
+          keyExtractor={item => item.id}
+        />
+      </ScrollView>
     </View>
   );
 };
@@ -81,6 +134,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
     backgroundColor: '#f2f2f2',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    marginBottom: 10,
+  },
+  headerText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    width: 100,  // Ajuste del tamaño para las columnas
+    textAlign: 'center',
   },
   input: {
     height: 40,
@@ -94,6 +161,29 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: 'green',
+    textAlign: 'center',
+  },
+  categoryItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actions: {
+    flexDirection: 'column',  // Cambiar de fila a columna para apilar los botones
+    marginLeft: 10,
+    justifyContent: 'center',
+    width: 100,  // Ancho ajustado para los botones
+  },
+  scrollContainer: {
+    marginTop: 10,
+  },
+  itemText: {
+    width: 100,  // Ajuste del tamaño para las celdas
     textAlign: 'center',
   },
 });

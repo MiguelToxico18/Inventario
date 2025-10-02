@@ -1,64 +1,103 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
-import { db } from '../firebaseConfig';  // Importar la configuración de Firebase
-import { collection, getDocs, setDoc, doc } from 'firebase/firestore';  // Importar Firestore
+import { View, TextInput, Button, StyleSheet, Text, Alert, FlatList, ScrollView } from 'react-native';
+import { db } from '../firebaseConfig';
+import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native';  // Importar useNavigation para la navegación
 
 const AgregarProveedor = () => {
-  const [proveedor, setProveedor] = useState('');  // Estado para manejar el nombre del proveedor
-  const [mensaje, setMensaje] = useState('');  // Estado para manejar el mensaje de éxito
-  const [lastId, setLastId] = useState('prov000');  // Estado para manejar el último ID registrado
+  const navigation = useNavigation();  // Usar useNavigation para la navegación
+  const [proveedor, setProveedor] = useState('');
+  const [mensaje, setMensaje] = useState('');
+  const [proveedores, setProveedores] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [proveedorId, setProveedorId] = useState('');
+  const [proveedorNombre, setProveedorNombre] = useState('');
 
-  // Función para obtener el último ID registrado
+  // Función para obtener el último ID y generar un nuevo ID único
   const obtenerUltimoId = async () => {
     try {
       const querySnapshot = await getDocs(collection(db, "Proveedor"));
       let maxId = 0;
 
-      // Recorremos los documentos y extraemos la parte numérica del ID
       querySnapshot.forEach(doc => {
-        const id = doc.id.replace('prov', '');  // Obtener solo la parte numérica del ID (sin "prov")
-        const numId = parseInt(id); // Convertir la parte numérica a un número
+        const id = doc.id.replace('prov', '');  // Obtener solo la parte numérica del ID
+        const numId = parseInt(id);
         if (!isNaN(numId)) {
           maxId = Math.max(maxId, numId);  // Obtener el ID más alto si es un número válido
         }
       });
 
-      setLastId(`prov${String(maxId + 1).padStart(3, '0')}`);  // Incrementar el ID y asignarlo a lastId
+      return `prov${String(maxId + 1).padStart(3, '0')}`;  // Incrementar el ID
     } catch (e) {
       console.error("Error obteniendo el último ID: ", e);
-      setLastId('prov001');  // Si no hay IDs en Firestore, comenzamos desde prov001
+      return 'prov001';  // Si no hay IDs en Firestore, comenzamos desde prov001
     }
   };
 
-  // Cargar el último ID cuando el componente se monta
+  // Función para obtener los proveedores
+  const obtenerProveedores = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "Proveedor"));
+      const proveedoresData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        nombre: doc.data().nombre,
+      }));
+      setProveedores(proveedoresData);  // Actualizamos la lista de proveedores
+    } catch (e) {
+      console.error("Error obteniendo los proveedores: ", e);
+    }
+  };
+
   useEffect(() => {
-    obtenerUltimoId();  // Obtener el último ID cuando se monta el componente
+    obtenerProveedores();
   }, []);
 
-  // Función para agregar el proveedor a Firestore
   const agregarProveedor = async () => {
     if (proveedor.trim() === "") {
       alert("Por favor ingresa un nombre de proveedor");
-      return; // Si el campo está vacío, no hace nada
+      return;
     }
 
     try {
-      // Usamos setDoc para asignar un ID manual con el formato prov001, prov002, etc.
-      const docRef = doc(db, "Proveedor", lastId); // Usamos el lastId como el ID del documento
+      const nuevoId = await obtenerUltimoId();  // Obtenemos un nuevo ID único
+
+      const docRef = doc(db, "Proveedor", nuevoId);
       await setDoc(docRef, {
-        nombre: proveedor,  // El valor del input (lo que el usuario ingresa)
-        idProveedor: lastId,  // Asignar el ID auto-incremental
+        nombre: proveedor,
+        idProveedor: nuevoId,
       });
 
-      // Actualiza el mensaje de éxito en la interfaz
-      setMensaje(`Proveedor "${proveedor}" agregado con ID ${lastId}.`);
-      Alert.alert("Éxito", `Proveedor "${proveedor}" agregado exitosamente con ID ${lastId}`);  // Alerta de éxito
-      setProveedor('');  // Limpiar el campo de texto después de agregar el proveedor
-      obtenerUltimoId();  // Actualizar el último ID después de agregar el proveedor
+      setMensaje(`Proveedor "${proveedor}" agregado con ID ${nuevoId}.`);
+      Alert.alert("Éxito", `Proveedor "${proveedor}" agregado exitosamente con ID ${nuevoId}`);
+      setProveedor('');  // Limpiar el input
+      obtenerProveedores();  // Recargar los proveedores
     } catch (e) {
-      console.error("Error agregando proveedor: ", e);  // Manejar cualquier error
+      console.error("Error agregando proveedor: ", e);
       Alert.alert("Error", "Hubo un error al agregar el proveedor. Intenta de nuevo.");
     }
+  };
+
+  const eliminarProveedor = async (idProveedor) => {
+    try {
+      await deleteDoc(doc(db, "Proveedor", idProveedor));
+      Alert.alert("Éxito", "Proveedor eliminado exitosamente.");
+      obtenerProveedores();
+    } catch (e) {
+      console.error("Error eliminando proveedor: ", e);
+      Alert.alert("Error", "Hubo un error al eliminar el proveedor. Intenta de nuevo.");
+    }
+  };
+
+  const abrirModal = (id, nombre) => {
+    setProveedorId(id);  // Establecemos el ID del proveedor
+    setProveedorNombre(nombre);  // Establecemos el nombre del proveedor
+    setModalVisible(true);  // Hacemos visible el modal
+
+    // Navegar a la pantalla de modificación
+    navigation.navigate('ModificarProveedor', {
+      proveedorId: id,
+      proveedorNombre: nombre,
+    });
   };
 
   return (
@@ -67,10 +106,35 @@ const AgregarProveedor = () => {
         style={styles.input}
         placeholder="Nombre del proveedor"
         value={proveedor}
-        onChangeText={setProveedor}  // Actualiza el estado con el valor del input
+        onChangeText={setProveedor}
       />
       <Button title="Agregar Proveedor" onPress={agregarProveedor} />
-      {mensaje ? <Text style={styles.successMessage}>{mensaje}{/* Muestra el mensaje de éxito si existe */}</Text> : null}  
+      {mensaje ? <Text style={styles.successMessage}>{mensaje}</Text> : null}
+
+      <View style={styles.headerRow}>
+        <Text style={styles.headerText}>ID</Text>
+        <Text style={styles.headerText}>Nombre</Text>
+        <Text style={styles.headerText}>Acciones</Text>
+      </View>
+
+      <ScrollView horizontal={true} style={styles.scrollContainer}>
+        <FlatList
+          data={proveedores}
+          renderItem={({ item }) => (
+            <View style={styles.categoryItem}>
+              <View style={styles.categoryRow}>
+                <Text style={styles.itemText}>{item.id}</Text>
+                <Text style={styles.itemText}>{item.nombre}</Text>
+                <View style={styles.actions}>
+                  <Button title="Modificar" onPress={() => abrirModal(item.id, item.nombre)} />
+                  <Button title="Eliminar" onPress={() => eliminarProveedor(item.id)} />
+                </View>
+              </View>
+            </View>
+          )}
+          keyExtractor={item => item.id}
+        />
+      </ScrollView>
     </View>
   );
 };
@@ -81,6 +145,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
     backgroundColor: '#f2f2f2',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    marginBottom: 10,
+  },
+  headerText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    width: 100,
+    textAlign: 'center',
   },
   input: {
     height: 40,
@@ -94,6 +172,29 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
     color: 'green',
+    textAlign: 'center',
+  },
+  categoryItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actions: {
+    flexDirection: 'column',
+    marginLeft: 10,
+    justifyContent: 'center',
+    width: 100,
+  },
+  scrollContainer: {
+    marginTop: 10,
+  },
+  itemText: {
+    width: 100,
     textAlign: 'center',
   },
 });
