@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Button, Text, Alert, FlatList, ScrollView, StyleSheet } from 'react-native';
-import { db } from '../firebaseConfig';  // Importar la configuración de Firebase
-import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';  // Importar Firestore
+import { View, TextInput, Button, Text, Alert, FlatList, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { db } from '../firebaseConfig';
+import { collection, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
 
-const AgregarCategoria = ({ navigation }) => {  // Recibiendo el prop navigation
+const AgregarCategoria = ({ navigation }) => {
   const [categoria, setCategoria] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [lastId, setLastId] = useState('CAT000');
@@ -51,7 +51,7 @@ const AgregarCategoria = ({ navigation }) => {  // Recibiendo el prop navigation
 
   const agregarCategoria = async () => {
     if (categoria.trim() === "") {
-      alert("Por favor ingresa un nombre de categoría");
+      Alert.alert("Error", "Por favor ingresa un nombre de categoría");
       return;
     }
 
@@ -63,127 +63,354 @@ const AgregarCategoria = ({ navigation }) => {  // Recibiendo el prop navigation
       });
 
       setMensaje(`Categoría "${categoria}" agregada con ID ${lastId}.`);
-      Alert.alert("Éxito", `Categoría "${categoria}" agregada exitosamente con ID ${lastId}`);
+      Alert.alert("✅ Éxito", `Categoría "${categoria}" agregada exitosamente`);
       setCategoria('');
       obtenerUltimoId();
       obtenerCategorias();
     } catch (e) {
       console.error("Error agregando categoría: ", e);
-      Alert.alert("Error", "Hubo un error al agregar la categoría. Intenta de nuevo.");
+      Alert.alert("❌ Error", "Hubo un error al agregar la categoría. Intenta de nuevo.");
     }
   };
 
-  const eliminarCategoria = async (idCategoria) => {
-    try {
-      await deleteDoc(doc(db, "Categoria", idCategoria));
-      Alert.alert("Éxito", "Categoría eliminada exitosamente.");
-      obtenerCategorias();
-    } catch (e) {
-      console.error("Error eliminando categoría: ", e);
-      Alert.alert("Error", "Hubo un error al eliminar la categoría. Intenta de nuevo.");
-    }
+  const eliminarCategoria = async (idCategoria, nombreCategoria) => {
+    Alert.alert(
+      "🗑️ Eliminar Categoría",
+      `¿Estás seguro de que quieres eliminar la categoría "${nombreCategoria}"?`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "Categoria", idCategoria));
+              Alert.alert("✅ Éxito", "Categoría eliminada exitosamente.");
+              obtenerCategorias();
+            } catch (e) {
+              console.error("Error eliminando categoría: ", e);
+              Alert.alert("❌ Error", "Hubo un error al eliminar la categoría. Intenta de nuevo.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   const abrirModal = (id, nombre) => {
-    // Pasamos el id y nombre de la categoría a la pantalla ModificarCategoria
     navigation.navigate('ModificarCategoria', { categoriaId: id, categoriaNombre: nombre });
   };
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre de la categoría"
-        value={categoria}
-        onChangeText={setCategoria}
-      />
-      <Button title="Agregar Categoría" onPress={agregarCategoria} />
-      {mensaje ? <Text style={styles.successMessage}>{mensaje}</Text> : null}
-
-      <View style={styles.headerRow}>
-        <Text style={styles.headerText}>ID</Text>
-        <Text style={styles.headerText}>Nombre</Text>
-        <Text style={styles.headerText}>Acciones</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Gestión de Categorías</Text>
+        <Text style={styles.subtitle}>Administra las categorías de productos</Text>
       </View>
 
-      <ScrollView horizontal={true} style={styles.scrollContainer}>
-        <FlatList
-          data={categorias}
-          renderItem={({ item }) => (
-            <View style={styles.categoryItem}>
-              <View style={styles.categoryRow}>
-                <Text style={styles.itemText}>{item.id}</Text>
-                <Text style={styles.itemText}>{item.nombre}</Text>
-                <View style={styles.actions}>
-                  <Button title="Modificar" onPress={() => abrirModal(item.id, item.nombre)} />
-                  <Button title="Eliminar" onPress={() => eliminarCategoria(item.id)} />
-                </View>
-              </View>
+      {/* Formulario de agregar categoría */}
+      <View style={styles.formCard}>
+        <Text style={styles.sectionTitle}>Agregar Nueva Categoría</Text>
+        
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Nombre de la Categoría *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej: Electrónicos, Ropa, Hogar..."
+            value={categoria}
+            onChangeText={setCategoria}
+          />
+        </View>
+
+        <TouchableOpacity style={styles.primaryButton} onPress={agregarCategoria}>
+          <Text style={styles.primaryButtonText}>➕ Agregar Categoría</Text>
+        </TouchableOpacity>
+
+        {mensaje ? (
+          <View style={styles.successMessage}>
+            <Text style={styles.successMessageText}>{mensaje}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Lista de categorías existentes */}
+      <View style={styles.listCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Categorías Existentes</Text>
+          <Text style={styles.categoryCount}>{categorias.length} categorías</Text>
+        </View>
+
+        {categorias.length > 0 ? (
+          <View style={styles.tableContainer}>
+            {/* Header de la tabla */}
+            <View style={styles.tableHeader}>
+              <Text style={[styles.headerCell, styles.idColumn]}>ID</Text>
+              <Text style={[styles.headerCell, styles.nameColumn]}>Nombre</Text>
+              <Text style={[styles.headerCell, styles.actionsColumn]}>Acciones</Text>
             </View>
-          )}
-          keyExtractor={item => item.id}
-        />
-      </ScrollView>
-    </View>
+
+            {/* Lista de categorías */}
+            <FlatList
+              data={categorias}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <View style={styles.categoryRow}>
+                  <View style={[styles.cell, styles.idColumn]}>
+                    <Text style={styles.idText}>{item.id}</Text>
+                  </View>
+                  
+                  <View style={[styles.cell, styles.nameColumn]}>
+                    <Text style={styles.nameText}>{item.nombre}</Text>
+                  </View>
+                  
+                  <View style={[styles.cell, styles.actionsColumn]}>
+                    <View style={styles.actions}>
+                      <TouchableOpacity 
+                        style={styles.editButton}
+                        onPress={() => abrirModal(item.id, item.nombre)}
+                      >
+                        <Text style={styles.editButtonText}>✏️</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={styles.deleteButton}
+                        onPress={() => eliminarCategoria(item.id, item.nombre)}
+                      >
+                        <Text style={styles.deleteButtonText}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+              keyExtractor={item => item.id}
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No hay categorías registradas</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Las categorías que agregues aparecerán aquí
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#f2f2f2',
+    backgroundColor: '#f8f9fa',
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    marginBottom: 10,
+  header: {
+    backgroundColor: '#ffffff',
+    padding: 24,
+    paddingTop: 50,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 20,
   },
-  headerText: {
-    fontWeight: 'bold',
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#2d3748',
+    marginBottom: 8,
+  },
+  subtitle: {
     fontSize: 16,
-    width: 100,  // Ajuste del tamaño para las columnas
-    textAlign: 'center',
+    color: '#718096',
+    fontWeight: '400',
   },
-  input: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    marginBottom: 15,
-    paddingLeft: 10,
-    borderRadius: 5,
+  formCard: {
+    backgroundColor: '#ffffff',
+    margin: 16,
+    padding: 24,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  successMessage: {
-    marginTop: 20,
-    fontSize: 16,
-    color: 'green',
-    textAlign: 'center',
+  listCard: {
+    backgroundColor: '#ffffff',
+    margin: 16,
+    marginTop: 8,
+    padding: 24,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 30,
   },
-  categoryItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2d3748',
+    marginBottom: 8,
   },
-  categoryRow: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
+  },
+  categoryCount: {
+    fontSize: 14,
+    color: '#718096',
+    fontWeight: '500',
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4a5568',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#f7fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#2d3748',
+  },
+  primaryButton: {
+    backgroundColor: '#4299e1',
+    padding: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#4299e1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  successMessage: {
+    backgroundColor: '#c6f6d5',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#38a169',
+  },
+  successMessageText: {
+    color: '#2d3748',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  tableContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#34495e',
+    paddingVertical: 16,
+  },
+  headerCell: {
+    fontWeight: '600',
+    fontSize: 14,
+    color: 'white',
+    textAlign: 'center',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f7fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  cell: {
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  // Column widths
+  idColumn: {
+    width: 100,
+  },
+  nameColumn: {
+    flex: 1,
+  },
+  actionsColumn: {
+    width: 120,
+  },
+  idText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#4a5568',
+    textAlign: 'center',
+  },
+  nameText: {
+    fontSize: 14,
+    color: '#2d3748',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   actions: {
-    flexDirection: 'column',  // Cambiar de fila a columna para apilar los botones
-    marginLeft: 10,
-    justifyContent: 'center',
-    width: 100,  // Ancho ajustado para los botones
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
-  scrollContainer: {
-    marginTop: 10,
+  editButton: {
+    backgroundColor: '#ed8936',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 40,
+    alignItems: 'center',
   },
-  itemText: {
-    width: 100,  // Ajuste del tamaño para las celdas
+  editButtonText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  deleteButton: {
+    backgroundColor: '#f56565',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 40,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#a0aec0',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#cbd5e0',
     textAlign: 'center',
   },
 });
